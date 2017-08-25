@@ -1,0 +1,17 @@
+from math import *
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def read_set(setnumber, settype):
+    data = pd.read_csv(settype+'_'+str(setnumber)+'.txt', delim_whitespace=True, header=None)
+    new_cols = ['id', 'cycle', 'setting1', 'setting2', 'setting3'] + ['s'+str(x) for x in range(1, 26-4)]
+    data.columns = new_cols
+    labels = pd.read_csv('_'+str(setnumber)+'.txt', delim_whitespace=True, header=None)
+    return data
+
+setnumber = 'FD001'
+fd1_train = read_set(setnumber, 'train')
+fd1_test = read_set(setnumber, 'test')
+

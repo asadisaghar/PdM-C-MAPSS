@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import sklearn.preprocessing
 import sklearn.gaussian_process as gp
+import sklearn.metrics
 import keras.models
 import keras.layers
 
@@ -34,7 +35,7 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	return agg
 
 def more_preprocessing(settype, setnumber, cat_columns=[]):
-    df = pd.read_csv(settype+'_'+setnumber+'.csv')
+    df = pd.read_csv('data/'+settype+'_'+setnumber+'.csv')
     values = df.values
     # integer encode categorical columns
     encoder = sklearn.preprocessing.LabelEncoder()
@@ -48,17 +49,24 @@ def more_preprocessing(settype, setnumber, cat_columns=[]):
     # frame as supervised learning
     reframed = series_to_supervised(scaled, n_in=1, n_out=1, dropnan=True)
     # drop columns we don't want to predict
-    reframed.drop(reframed.columns[[0,1,2,3,4,26,27,28,29,30]], axis=1, inplace=True)
+#    reframed.drop(reframed.columns[[0,1,2,3,4,26,27,28,29,30]], axis=1, inplace=True)
     return reframed.values, scaler
 
 # set the dataset
 sn = str(sys.argv[1])
-setnumber = 'FD00' + sn
 # set batch size
 bs = int(sys.argv[2])
 #set number of epochs
 epoch = int(sys.argv[3])
+#set first layer width
+lw = int(sys.argv[4])
 
+# sn = 1
+# bs = 100
+# epoch = 20
+# lw = 80
+
+setnumber = 'FD00' + str(sn)
 train, train_scaler = more_preprocessing('train', setnumber, [21, 22])
 test, test_scaler = more_preprocessing('test', setnumber, [21, 22])
 
@@ -68,12 +76,12 @@ test_X, test_y = test[:, :-1], test[:, -1]
 # reshape input to be 3D [samples, timesteps, features]
 train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
 test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
-print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+#print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
 
 # design network
 model = keras.models.Sequential()
-model.add(keras.layers.LSTM(50, input_shape=(train_X.shape[1], train_X.shape[2])))
-model.add(keras.layers.Dense(1))
+model.add(keras.layers.LSTM(lw, input_shape=(train_X.shape[1], train_X.shape[2])))
+model.add(keras.layers.Dense(1, activation='relu'))
 model.compile(loss='mae', optimizer='adam')
 # fit network
 history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_data=(test_X, test_y), verbose=2, shuffle=False)
@@ -81,20 +89,23 @@ history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_da
 plt.plot(history.history['loss'], label='train')
 plt.plot(history.history['val_loss'], label='test')
 plt.legend()
-plt.show()
 
 # make a prediction
 yhat = model.predict(test_X)
 test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
 # invert scaling for forecast
 inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
-inv_yhat = test_scaler.inverse_transform(inv_yhat)
-inv_yhat = inv_yhat[:,0]
+# inv_yhat = test_scaler.inverse_transform(inv_yhat)
+# inv_yhat = inv_yhat[:,0]
 # invert scaling for actual
 test_y = test_y.reshape((len(test_y), 1))
 inv_y = np.concatenate((test_y, test_X[:, 1:]), axis=1)
-inv_y = test_scaler.inverse_transform(inv_y)
-inv_y = inv_y[:,0]
+# inv_y = test_scaler.inverse_transform(inv_y)
+# inv_y = inv_y[:,0]
 # calculate RMSE
-rmse = sqrt(mean_squared_error(inv_y, inv_yhat))
+#rmse = sqrt(sklearn.metrics.mean_squared_error(inv_y, inv_yhat))
+rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
 print('Test RMSE: %.3f' % rmse)
+
+plt.title('Test RMSE: %.3f' % rmse)
+plt.savefig('plots/'+setnumber+'_BatchSize'+str(bs)+'_Epochs'+str(epoch)+'_LayerWidth'+str(lw)+'.png')

@@ -41,7 +41,7 @@ id_columns = ['id', 'cycle']
 train = read_set(setnumber, 'train')
 cat_train, scale_train = find_col_types(train, id_columns)
 train = calculate_train_RUL(train)
-train.to_csv('train_'+setnumber+'.csv')
+train.to_csv('data/train_'+setnumber+'.csv')
 
 #Test set
 test = read_set(setnumber, 'test')
@@ -54,7 +54,7 @@ label.columns = ['id', 'RUL']
 label['id'] = label['id'] + 1  #index is 0-bount but part_ids are 1-bound
 
 test = calculate_test_RUL(test, label)
-test.to_csv('test_'+setnumber+'.csv')
+test.to_csv('data/test_'+setnumber+'.csv')
 
 plt.figure()
 sns.distplot(train.RUL, label='train')

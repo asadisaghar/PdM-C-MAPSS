@@ -33,6 +33,16 @@ def calculate_test_RUL(df, label_df):
         df.loc[df['id']==part_id,'RUL'] = max_cycle + label_RUL + (max_cycle - df.loc[df['id']==part_id, 'cycle'])
     return df
 
+def plot_correlations(df, drop_cols=[], title='', plot_name='correlation'):
+    tmp_df = df.drop(drop_cols, 1)
+    corr = tmp_df.corr()
+    plt.figure()
+    g = sns.heatmap(corr)
+    g.set_xticklabels(g.get_xticklabels(), rotation = 30, fontsize = 8)
+    g.set_yticklabels(g.get_yticklabels(), rotation = 30, fontsize = 8)
+    plt.title(title)
+    plt.savefig('plots/'+plot_name+'.png')
+    
 sn = str(sys.argv[1])
 setnumber = 'FD00'+sn
 id_columns = ['id', 'cycle']
@@ -60,4 +70,6 @@ plt.figure()
 sns.distplot(train.RUL, label='train')
 sns.distplot(test.RUL, label='test')
 plt.legend()
-plt.show()
+#plt.show()
+
+plot_correlations(train, drop_cols=['id', 'cycle', 'RUL'], title=setnumber, plot_name=setnumber)

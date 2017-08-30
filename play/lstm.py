@@ -60,11 +60,8 @@ bs = int(sys.argv[2])
 epoch = int(sys.argv[3])
 #set first layer width
 lw = int(sys.argv[4])
-
-# sn = 1
-# bs = 100
-# epoch = 20
-# lw = 80
+#set number of stacked LSTM layers
+stack_depth = int(sys.argv[5])
 
 setnumber = 'FD00' + str(sn)
 train, train_scaler = more_preprocessing('train', setnumber, [21, 22])
@@ -80,8 +77,10 @@ test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
 
 # design network
 model = keras.models.Sequential()
+for i in range(stack_depth-1):
+        model.add(keras.layers.LSTM(lw, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
 model.add(keras.layers.LSTM(lw, input_shape=(train_X.shape[1], train_X.shape[2])))
-model.add(keras.layers.Dense(1, activation='relu'))
+model.add(keras.layers.Dense(1, activation='softplus')) #more stable compared to 'relu'...
 model.compile(loss='mae', optimizer='adam')
 # fit network
 history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_data=(test_X, test_y), verbose=1, shuffle=True)
@@ -108,4 +107,4 @@ rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
 print('Test RMSE: %.3f' % rmse)
 
 plt.title('Test RMSE: %.3f' % rmse)
-plt.savefig('plots/'+setnumber+'_BatchSize'+str(bs)+'_Epochs'+str(epoch)+'_LayerWidth'+str(lw)+'.png')
+plt.savefig('plots/'+setnumber+'_BatchSize'+str(bs)+'_Epochs'+str(epoch)+'_LayerWidth'+str(lw)+'_Stack'+str(stack_depth)+'.png')

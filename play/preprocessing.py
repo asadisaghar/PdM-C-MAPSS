@@ -61,7 +61,7 @@ cat_test, scale_test = find_col_types(test, id_columns)
 label = pd.read_csv('original_data/'+'RUL_'+setnumber+'.txt', header=None)
 label.reset_index(level=[0], inplace=True)
 label.columns = ['id', 'RUL']
-label['id'] = label['id'] + 1  #index is 0-bount but part_ids are 1-bound
+label['id'] = label['id'] + 1  #index is 0-bound but part_ids are 1-bound
 
 test = calculate_test_RUL(test, label)
 test.to_csv('data/test_'+setnumber+'.csv')
@@ -70,6 +70,8 @@ plt.figure()
 sns.distplot(train.RUL, label='train')
 sns.distplot(test.RUL, label='test')
 plt.legend()
+plt.title('RUL distribution for various engines (ids)')
 #plt.show()
+plt.savefig('plots/'+setnumber+'_RULs.png')
 
 plot_correlations(train, drop_cols=['id', 'cycle', 'RUL'], title=setnumber, plot_name=setnumber)

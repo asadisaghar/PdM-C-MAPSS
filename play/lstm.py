@@ -45,12 +45,7 @@ def more_preprocessing(settype, setnumber, cat_columns=[]):
     values = values.astype('float32')
     # normalize features
     scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1))
-    scaled = scaler.fit_transform(values)
-    # frame as supervised learning
-    reframed = series_to_supervised(scaled, n_in=1, n_out=1, dropnan=True)
-    # drop columns we don't want to predict
-#    reframed.drop(reframed.columns[[0,1,2,3,4,26,27,28,29,30]], axis=1, inplace=True)
-    return reframed.values, scaler
+    return scaler
 
 # set the dataset
 sn = str(sys.argv[1])
@@ -64,8 +59,15 @@ lw = int(sys.argv[4])
 stack_depth = int(sys.argv[5])
 
 setnumber = 'FD00' + str(sn)
-train, train_scaler = more_preprocessing('train', setnumber, [21, 22])
+scaler = more_preprocessing('train', setnumber, [21, 22])
+train_scaled = scaler.fit_transform(values)
+# frame as supervised learning
+train = series_to_supervised(train_scaled, n_in=1, n_out=1, dropnan=True).values
+
 test, test_scaler = more_preprocessing('test', setnumber, [21, 22])
+test_scaled = scaler.fit_transform(values)
+# frame as supervised learning
+test = series_to_supervised(test_scaled, n_in=1, n_out=1, dropnan=True).values
 
 # split into input and outputs
 train_X, train_y = train[:, :-1], train[:, -1]

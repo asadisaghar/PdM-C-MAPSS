@@ -4,8 +4,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-import sklearn.gaussian_process as gp
 
 def read_set(setnumber, settype):
     name = 'original_data/'+settype+'_'+str(setnumber)+'.txt'

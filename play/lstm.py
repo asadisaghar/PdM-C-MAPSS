@@ -38,18 +38,19 @@ def more_preprocessing(settype, setnumber, cat_columns=[]):
     df = pd.read_csv('data/'+settype+'_'+setnumber+'.csv')
     values = df.values
     # integer encode categorical columns
-    encoder = sklearn.preprocessing.LabelEncoder()
-    for col in cat_columns:
-        values[:,col] = encoder.fit_transform(values[:,col])
+    #FIXME! OneHotEncode these too...
+    # encoder = sklearn.preprocessing.LabelEncoder()
+    # for col in cat_columns:
+    #     values[:,col] = encoder.fit_transform(values[:,col])
     # endure all data is float
     values = values.astype('float32')
     # normalize features
     if settype == 'train':
-            scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1))
-            scaler = scaler.fit(values)
+            scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1)).fit(values)
             return values, scaler
     elif settype == 'test':
             return values
+    return values
 
 # set the dataset
 sn = str(sys.argv[1])
@@ -62,32 +63,55 @@ lw = int(sys.argv[4])
 #set number of stacked LSTM layers
 stack_depth = int(sys.argv[5])
 
+# sn = 1
+# bs = 100
+# epoch = 5
+# lw = 2
+# stack_depth = 2
+
+n_in = 10
+n_out = 1 #Do not change!
+ts = n_in #n_in + n_out - 1
+
 setnumber = 'FD00' + str(sn)
+
+# scale the features
+#FIXME! this needs to be done for each ID separately...
 train_values, scaler = more_preprocessing('train', setnumber, [21, 22])
 train_scaled = scaler.transform(train_values)
-# frame as supervised learning
-train = series_to_supervised(train_scaled, n_in=1, n_out=1, dropnan=True).values
-
 test_values = more_preprocessing('test', setnumber, [21, 22])
 test_scaled = scaler.transform(test_values)
-# frame as supervised learning
-test = series_to_supervised(test_scaled, n_in=1, n_out=1, dropnan=True).values
 
+# frame as supervised learning
+#FIXME! this needs to be done for each ID separately...
+train = series_to_supervised(train_scaled, n_in, n_out, dropnan=True)
+drop_cols = range(train_scaled.shape[1]*n_in, train_scaled.shape[1]*(n_in+1)-1)
+train.drop(train.columns[drop_cols], axis=1, inplace=True)
+test = series_to_supervised(test_scaled, n_in, n_out, dropnan=True)
+test.drop(test.columns[drop_cols], axis=1, inplace=True)
+train = train.values
+test = test.values
 # split into input and outputs
 train_X, train_y = train[:, :-1], train[:, -1]
 test_X, test_y = test[:, :-1], test[:, -1]
+
 # reshape input to be 3D [samples, timesteps, features]
-train_X = train_X.reshape((train_X.shape[0], 1, train_X.shape[1]))
-test_X = test_X.reshape((test_X.shape[0], 1, test_X.shape[1]))
-#print(train_X.shape, train_y.shape, test_X.shape, test_y.shape)
+train_X = train_X.reshape((train_X.shape[0], ts, int(train_X.shape[1]/ts)))
+test_X = test_X.reshape((test_X.shape[0], ts, int(test_X.shape[1]/ts)))
 
 # design network
 model = keras.models.Sequential()
+
+# normal LSTM layers where the internal state is updated only at the end of an epoch
 for i in range(stack_depth-1):
         model.add(keras.layers.LSTM(lw, input_shape=(train_X.shape[1], train_X.shape[2]), return_sequences=True))
 model.add(keras.layers.LSTM(lw, input_shape=(train_X.shape[1], train_X.shape[2])))
+
+#FIXME! width of the final fully-connected output layer...
 model.add(keras.layers.Dense(1, activation='softplus')) #more stable compared to 'relu'...
 model.compile(loss='mae', optimizer='adam')
+print model.summary()
+
 # fit network
 history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_data=(test_X, test_y), verbose=1, shuffle=True)
 # plot history
@@ -97,20 +121,17 @@ plt.legend()
 
 # make a prediction
 yhat = model.predict(test_X)
-test_X = test_X.reshape((test_X.shape[0], test_X.shape[2]))
-# invert scaling for forecast
-inv_yhat = np.concatenate((yhat, test_X[:, 1:]), axis=1)
-inv_yhat = scaler.inverse_transform(inv_yhat)
-inv_yhat = inv_yhat[:,0]
-# invert scaling for actual
-test_y = test_y.reshape((len(test_y), 1))
-inv_y = np.concatenate((test_y, test_X[:, 1:]), axis=1)
-inv_y = scaler.inverse_transform(inv_y)
-inv_y = inv_y[:,0]
+
 # calculate RMSE
-rmse = sqrt(sklearn.metrics.mean_squared_error(inv_y, inv_yhat))
-#rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
+rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
 print('Test RMSE: %.3f' % rmse)
 
 plt.title('Test RMSE: %.3f' % rmse)
 plt.savefig('plots/'+setnumber+'_BatchSize'+str(bs)+'_Epochs'+str(epoch)+'_LayerWidth'+str(lw)+'_Stack'+str(stack_depth)+'.png')
+
+plt.figure()
+plt.plot(test_y, yhat, '.')
+plt.plot(test_y, test_y, '-')
+rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
+plt.title('Test RMSE: %.3f' % rmse)
+plt.savefig('plots/prediction.png')

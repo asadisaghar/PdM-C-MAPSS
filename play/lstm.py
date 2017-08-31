@@ -44,8 +44,12 @@ def more_preprocessing(settype, setnumber, cat_columns=[]):
     # endure all data is float
     values = values.astype('float32')
     # normalize features
-    scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1))
-    return scaler
+    if settype == 'train':
+            scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1))
+            scaler = scaler.fit(values)
+            return values, scaler
+    elif settype == 'test':
+            return values
 
 # set the dataset
 sn = str(sys.argv[1])
@@ -59,13 +63,13 @@ lw = int(sys.argv[4])
 stack_depth = int(sys.argv[5])
 
 setnumber = 'FD00' + str(sn)
-scaler = more_preprocessing('train', setnumber, [21, 22])
-train_scaled = scaler.fit_transform(values)
+train_values, scaler = more_preprocessing('train', setnumber, [21, 22])
+train_scaled = scaler.transform(train_values)
 # frame as supervised learning
 train = series_to_supervised(train_scaled, n_in=1, n_out=1, dropnan=True).values
 
-test, test_scaler = more_preprocessing('test', setnumber, [21, 22])
-test_scaled = scaler.fit_transform(values)
+test_values = more_preprocessing('test', setnumber, [21, 22])
+test_scaled = scaler.transform(test_values)
 # frame as supervised learning
 test = series_to_supervised(test_scaled, n_in=1, n_out=1, dropnan=True).values
 

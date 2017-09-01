@@ -40,7 +40,7 @@ def plot_correlations(df, drop_cols=[], title='', plot_name='correlation'):
     g.set_yticklabels(g.get_yticklabels(), rotation = 30, fontsize = 8)
     plt.title(title)
     plt.savefig('plots/'+plot_name+'.png')
-    
+
 sn = str(sys.argv[1])
 setnumber = 'FD00'+sn
 id_columns = ['id', 'cycle']
@@ -50,7 +50,7 @@ train = read_set(setnumber, 'train')
 cat_train, scale_train = find_col_types(train, id_columns)
 train = calculate_train_RUL(train)
 train.to_csv('data/train_'+setnumber+'.csv')
-
+    
 #Test set
 test = read_set(setnumber, 'test')
 cat_test, scale_test = find_col_types(test, id_columns)

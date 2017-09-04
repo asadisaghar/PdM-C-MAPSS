@@ -40,38 +40,8 @@ def series_to_supervised(data, n_in=1, n_out=1, dropnan=True):
 	if dropnan:
 		agg.dropna(inplace=True)
 	return agg
-
-def more_preprocessing(settype, setnumber, cat_columns=[]):
-    df = pd.read_csv('data/'+settype+'_'+setnumber+'.csv')
-    values = df.values
-
-    # integer encode categorical columns
-    # FIXME! OneHotEncode these too...
-    # encoder = sklearn.preprocessing.LabelEncoder()
-    # for col in cat_columns:
-    #     values[:,col] = encoder.fit_transform(values[:,col])
-    
-    # endure all data is float
-    values = values.astype('float64')
-
-    # normalize features
-    if settype == 'train':
-        scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1)).fit(values)
-    else:
-        scaler = None
-
-    # pad sequences
-    sequences = [df.loc[df.id==i] for i in df.id.unique()]
-    padded = keras.preprocessing.sequence.pad_sequences(sequences, padding='post', dtype='float64')
-    df_padded = pd.DataFrame(columns=df.columns)
-    for i in range(len(padded)):
-        df_padded = df_padded.append(pd.DataFrame(data=padded[i], columns=df.columns))
-    df = df_padded
-    
-    return df, scaler
-
-# pad columns - use for each sample sequence separately
-def pad_columns(df, maxlen, mode='pre'):
+# pad sequences - use for each sample sequence separately
+def pad_seq(df, maxlen, mode='pre'):
         if maxlen < df.cycle.max():
                 print 'the "maxlen" you chose is shorter than the current sequence. Use truncate_columns instead to truncate the sequence.'
                 return df
@@ -83,8 +53,8 @@ def pad_columns(df, maxlen, mode='pre'):
                         pass #FIXME!
                 return tmp
 
-# pad columns - use for each sample sequence separately
-def truncate_columns(df, minlen, mode='post'):
+# truncate sequences - use for each sample sequence separately
+def truncate_seq(df, minlen, mode='post'):
         # if minlen > df.cycle.max():
         #         print 'the "minlen" you chose is longer than the current sequence. Use pad_column instead to zero-pad the sequence.', df.id.unique()
         #         return df
@@ -94,23 +64,10 @@ def truncate_columns(df, minlen, mode='post'):
                 elif mode == 'pre':
                         pass
                 return tmp
-        
-# # set the dataset
-# sn = str(sys.argv[1])
-# # set the sample/engine ID
-# sid = str(sys.argv[2])
-# # set batch size
-# bs = int(sys.argv[3])
-# #set number of epochs
-# epoch = int(sys.argv[4])
-# #set first layer width
-# lw = int(sys.argv[5])
-# #set number of stacked LSTM layers
-# stack_depth = int(sys.argv[6])
 
 sn = 1
-bs = 100
-epoch = 5
+bs = 1
+epoch = 50
 lw = 2
 stack_depth = 2
 
@@ -120,6 +77,7 @@ setnumber = 'FD00' + str(sn)
 print 'read data'
 train = pd.read_csv('data/train_'+setnumber+'.csv')
 test = pd.read_csv('data/test_'+setnumber+'.csv')
+
 
 # drop the extra column
 print 'drop index column'
@@ -134,28 +92,36 @@ test_values = scaler.transform(test.values)
 
 # pad sequences
 print 'zero-pad/truncate sequences'
-maxlen = train.cycle.max()
-clens = np.array([train.loc[train.id==i, 'cycle'].max() for i in train.id.unique()])
-minlen = clens.min()
+train_maxlen = train.cycle.max()
+train_clens = np.array([train.loc[train.id==i, 'cycle'].max() for i in train.id.unique()])
+train_minlen = train_clens.min()
 
-padded = pd.DataFrame(columns=train.columns)
+test_maxlen = test.cycle.max()
+test_clens = np.array([test.loc[test.id==i, 'cycle'].max() for i in test.id.unique()])
+test_minlen = test_clens.min()
+
+train_minlen = test_minlen
+
+train_padded = pd.DataFrame(columns=train.columns)
 for i in train.id.unique():
-#    padded = padded.append(pad_columns(train.loc[train.id==i], maxlen))
-    padded = padded.append(truncate_columns(train.loc[train.id==i], minlen))
-train = padded
+    train_padded = train_padded.append(truncate_seq(train.loc[train.id==i], train_minlen))
+train = train_padded
 
-padded = pd.DataFrame(columns=train.columns)
+test_padded = pd.DataFrame(columns=test.columns)
 for i in test.id.unique():
-#    padded = padded.append(pad_columns(test.loc[test.id==i], maxlen))
-    padded = padded.append(truncate_columns(test.loc[test.id==i], minlen))    
-test = padded
+    test_padded = test_padded.append(truncate_seq(test.loc[test.id==i], test_minlen))
+test = test_padded
 
 # read the data dimensions for the LSTM layer
 train_samples = train.id.nunique()
 test_samples = test.id.nunique()
 
-n_in = minlen - 1
+train_n_in = train_minlen - 1
+test_n_in = test_minlen - 1
 n_out = 1
+
+train_timesteps = train_n_in + n_out
+test_timesteps = test_n_in + n_out
 
 # frame as supervised learning
 print 'frame sequence as supervised learning'
@@ -164,44 +130,28 @@ train_y = {}
 for i in train.id.unique():
         t_in = train.loc[train.id==i, train.columns.difference(['id', 'cycle'])]
         train_y[i] = t_in.RUL.min()
-        tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+        tmp = series_to_supervised(t_in.values, train_n_in, n_out, dropnan=True)
         train_formatted = train_formatted.append(tmp)
-        # row_i, col_i = t_in.shape[0], t_in.shape[1]        
-        # print 'expected: ', row_i - n_in, ((col_i)*(n_in + n_out))
-        # print 'measured: ', tmp.shape
-        # print '------'
-
-# drop_cols = range(train.shape[1]*n_in, train.shape[1]*(n_in+1)-1)
-# train.drop(train.columns[drop_cols], axis=1, inplace=True)
 train = train_formatted
 
 test_formatted = pd.DataFrame()
 for i in test.id.unique():
         t_in = test.loc[test.id==i, test.columns.difference(['id', 'cycle'])]
-        tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+        tmp = series_to_supervised(t_in.values, test_n_in, n_out, dropnan=True)
         test_formatted = test_formatted.append(tmp)
-        # row_i, col_i = t_in.shape[0], t_in.shape[1]
-        # print 'expected: ', row_i - n_in, ((col_i)*(n_in + n_out))
-        # print 'measured: ', tmp.shape
-        # print '------'
-        
-# test.drop(test.columns[drop_cols], axis=1, inplace=True)
 test = test_formatted
 
 # split into input and outputs
 print 'split into inputs(X) and output/labels(y)' 
-train_X = train.values[:, :-1]
-test_X = test.values[:, :-1]
+
+train_features = int(train.shape[1]*1./train_timesteps)
+test_features = int(test.shape[1]*1./test_timesteps)
+
+train_X = train.values
+test_X = test.values
 test_y = pd.read_csv('original_data/RUL_'+setnumber+'.txt', header=None, names=['RUL']).RUL.values
 train_y = pd.DataFrame(train_y.items(), columns=['id', 'RUL']).RUL.values
 
-train_features = train_X.shape[1]
-test_features = test_X.shape[1]
-
-# train_timesteps = int(train_X.shape[0]/train_samples)
-# test_timesteps = int(test_X.shape[0]/test_samples)
-
-# reshape input to be 3D [samples, timesteps, features]
 print 'reshape features to the 3D format required by Keras [samples, timesteps, features]'
 train_X = train_X.reshape((train_samples, train_timesteps, train_features))
 test_X = test_X.reshape((test_samples, test_timesteps, test_features))
@@ -220,27 +170,10 @@ model.compile(loss='mae', optimizer='adam')
 print model.summary()
 
 # fit network
-history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_data=(test_X, test_y), verbose=1, shuffle=True)
-#history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, verbose=1, shuffle=True)
+#history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, validation_data=(test_X, test_y), verbose=1, shuffle=True)
+history = model.fit(train_X, train_y, epochs=epoch, batch_size=bs, verbose=1, shuffle=True)
 # plot history
 plt.plot(history.history['loss'], label='train')
-plt.plot(history.history['val_loss'], label='test')
+#plt.plot(history.history['val_loss'], label='test')
 plt.legend()
 plt.show()
-
-# # # make a prediction
-# # yhat = model.predict(test_X)
-
-# # # calculate RMSE
-# # rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
-# # print('Test RMSE: %.3f' % rmse)
-
-# # plt.title('Test RMSE: %.3f' % rmse)
-# # plt.savefig('plots/'+setnumber+'_BatchSize'+str(bs)+'_Epochs'+str(epoch)+'_LayerWidth'+str(lw)+'_Stack'+str(stack_depth)+'.png')
-
-# # plt.figure()
-# # plt.plot(test_y, yhat, '.')
-# # plt.plot(test_y, test_y, '-')
-# # rmse = sqrt(sklearn.metrics.mean_squared_error(test_y, yhat))
-# # plt.title('Test RMSE: %.3f' % rmse)
-# # plt.savefig('plots/prediction.png')

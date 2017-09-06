@@ -51,7 +51,7 @@ id_columns = ['id', 'cycle']
 
 #Training set
 train = read_set(setnumber, 'train')
-cat_train, scale_train = find_col_types(train, id_columns)
+#cat_train, scale_train = find_col_types(train, id_columns)
 train = calculate_train_RUL(train)
 if not os.path.exists("data"):
     os.mkdir("data")
@@ -59,7 +59,7 @@ train.to_csv('data/train_'+setnumber+'.csv')
     
 #Test set
 test = read_set(setnumber, 'test')
-cat_test, scale_test = find_col_types(test, id_columns)
+#cat_test, scale_test = find_col_types(test, id_columns)
 
 #Labels
 label = pd.read_csv('original_data/'+'RUL_'+setnumber+'.txt', header=None)

@@ -1,9 +1,13 @@
 import sys
+import os
 from math import *
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('AGG') # Workaround for get_renderer not existing on the default svg backend.
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 
 def read_set(setnumber, settype):
     name = 'original_data/'+settype+'_'+str(setnumber)+'.txt'
@@ -34,7 +38,7 @@ def calculate_test_RUL(df, label_df):
 def plot_correlations(df, drop_cols=[], title='', plot_name='correlation'):
     tmp_df = df.drop(drop_cols, 1)
     corr = tmp_df.corr()
-    plt.figure()
+    fig = plt.figure()
     g = sns.heatmap(corr)
     g.set_xticklabels(g.get_xticklabels(), rotation = 30, fontsize = 8)
     g.set_yticklabels(g.get_yticklabels(), rotation = 30, fontsize = 8)
@@ -49,6 +53,8 @@ id_columns = ['id', 'cycle']
 train = read_set(setnumber, 'train')
 cat_train, scale_train = find_col_types(train, id_columns)
 train = calculate_train_RUL(train)
+if not os.path.exists("data"):
+    os.mkdir("data")
 train.to_csv('data/train_'+setnumber+'.csv')
     
 #Test set

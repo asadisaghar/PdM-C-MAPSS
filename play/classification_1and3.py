@@ -21,10 +21,7 @@ numpy.random.seed(seed)
 #epochs = 500
 sn = int(sys.argv[1])
 epochs = int(sys.argv[2])
-if (sn==3) or (sn==1):
-        dense_depth = 10
-else:
-        dense_depth = 1
+dense_depth = 10
         
 setnumber = 'FD00' + str(sn)
 dataframe = pandas.read_csv('data/PCA/train_'+setnumber+'.csv')
@@ -58,15 +55,6 @@ def baseline_model(dense_depth, sn):
                                 bias_regularizer=regularizers.l2(0.05),
                                 kernel_initializer='random_uniform',
                                 kernel_regularizer=regularizers.l2(0.005),
-                ))
-        elif sn == 2:
-	        model.add(Dense(dense_depth, input_dim=10,
-                                activation='relu',
-                                use_bias=True,
-                                bias_initializer='random_uniform',
-                                bias_regularizer=regularizers.l2(0.5),
-                                kernel_initializer='random_normal',
-                                kernel_regularizer=regularizers.l2(0.5),
                 ))
         elif sn == 3:
 	        model.add(Dense(dense_depth, input_dim=10,

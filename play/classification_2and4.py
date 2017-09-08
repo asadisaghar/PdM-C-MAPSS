@@ -3,7 +3,7 @@ import numpy
 import matplotlib.pyplot as plt
 import pandas
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras.utils import np_utils
 from sklearn.model_selection import cross_val_score
@@ -20,28 +20,32 @@ numpy.random.seed(seed)
 #sn = 3
 #epochs = 500
 sn = int(sys.argv[1])
-epochs = int(sys.argv[2])
-dense_depth = 10
+group = int(sys.argv[2])
+epochs = int(sys.argv[3])
+dense_depth = 1
         
 setnumber = 'FD00' + str(sn)
-dataframe = pandas.read_csv('data/PCA/train_'+setnumber+'.csv')
+if group==0:
+        dataframe = pandas.read_csv('data/PCA/train_'+setnumber+'.csv')
+else:
+        dataframe = pandas.read_csv('data/PCA/train_'+setnumber+'_group'+str(group)+'.csv')
 dataframe.dropna(inplace=True)
 dataset = dataframe.values
 if sn==2:
-        X = dataset[:,5:13].astype(float)
+        X = dataset[:,5:-2]
         Y = dataset[:,-1]
 elif sn==4:
-        X = dataset[:,4:13].astype(float)
+        X = dataset[:,4:-2].astype(float)
         Y = dataset[:,-1]
 
 test_dataframe = pandas.read_csv('data/PCA/test_'+setnumber+'.csv')
 test_dataframe.dropna(inplace=True)
 test_dataset = test_dataframe.values
 if sn==2:
-        X_test = test_dataset[:,5:13].astype(float)
+        X_test = test_dataset[:,5:-2]
         Y_test = test_dataset[:,-1]
 elif sn==4:
-        X_test = test_dataset[:,4:13].astype(float)
+        X_test = test_dataset[:,4:-2].astype(float)
         Y_test = test_dataset[:,-1]
 
 # [one-hot] encode class values
@@ -54,35 +58,40 @@ encoded_Y_test = encoder.transform(Y_test)
 dummy_y_test = np_utils.to_categorical(encoded_Y_test)
 
 # define baseline model
-def baseline_model(dense_depth, sn):
+def baseline_model(dense_depth, sn, X):
 	# create model
 	model = Sequential()
         if sn == 2:
-	        model.add(Dense(dense_depth, input_dim=8,
+	        # model.add(Dense(2, input_dim=17,
+                #                 activation='relu',
+                #                 use_bias=True,
+                #                 bias_initializer='zeros',
+                #                 bias_regularizer=regularizers.l2(0.5),
+                #                 # kernel_initializer='random_uniform',
+                #                 # kernel_regularizer=regularizers.l2(0.5),
+                # ))
+                model.add(Dense(1, input_dim=X.shape[1], kernel_initializer='normal', use_bias=True, activation='relu'))                
+                model.add(Dropout(0.5))
+                model.add(Dense(1, kernel_initializer='normal', use_bias=True, activation='relu'))
+                model.add(Dropout(0.5))
+        elif sn == 4:
+	        model.add(Dense(dense_depth, input_dim=18,
                                 activation='relu',
                                 use_bias=True,
-                                bias_initializer='random_uniform',
+                                bias_initializer='zeros',
                                 bias_regularizer=regularizers.l2(0.05),
                                 kernel_initializer='random_uniform',
-                                kernel_regularizer=regularizers.l2(0.005),
+                                kernel_regularizer=regularizers.l1(0.01),
                 ))
-        elif sn == 4:
-	        model.add(Dense(dense_depth, input_dim=9,
-                                activation='relu',
-                                use_bias=True,
-                                bias_initializer='random_normal',
-                                bias_regularizer=regularizers.l2(0.001),
-                                kernel_initializer='random_uniform',
-                                kernel_regularizer=regularizers.l1(0.005),
-                ))
+                model.add(Dropout(0.2))
                 
 	model.add(Dense(4, activation='softmax'))
 	# Compile model
 	model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 	return model
 
-model = baseline_model(dense_depth, sn)
-history = model.fit(X, dummy_y, epochs=epochs, batch_size=2000, validation_data=(X_test, dummy_y_test), verbose=1, shuffle=True)
+model = baseline_model(dense_depth, sn, X)
+history = model.fit(X, dummy_y, epochs=epochs, batch_size=200, validation_data=(X_test, dummy_y_test), verbose=1, shuffle=True)
 plt.plot(history.history['loss'], label='train')
 plt.plot(history.history['val_loss'], label='test')
 plt.legend()

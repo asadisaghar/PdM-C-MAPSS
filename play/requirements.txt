@@ -1,0 +1,7 @@
+matplotlib
+seaborn
+numpy
+sklearn
+tensorflow
+keras
+xgboost

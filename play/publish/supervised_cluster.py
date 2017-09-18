@@ -103,9 +103,8 @@ train_step = tf.train.GradientDescentOptimizer(0.9).minimize(loss)
 init_op = tf.global_variables_initializer()
 
 # Run training loop
-#sess = tf.Session('grpc://207.154.206.7:4711')
-#with tf.Session('grpc://207.154.206.7:4711') as sess:
-with tf.Session() as sess:
+with tf.Session('grpc://192.168.1.194:4711') as sess:
+#with tf.Session() as sess:
     K.set_session(sess)
     sess.run(init_op)
     for i in range(int(len(X_train)/bs)):

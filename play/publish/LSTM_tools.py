@@ -130,7 +130,7 @@ def pad_columns(df, maxlen, mode='pre'):
                 return df
         else:
                 if mode == 'pre':
-                        tmp = pd.DataFrame({'cycle': range(df.cycle.max(), maxlen), 'id': df.id.unique()[0]}, columns=df.columns) #FIXME! possible off-by-one error in using range!
+                        tmp = pd.DataFrame({'cycle': range(int(df.cycle.max()), maxlen), 'id': df.id.unique()[0]}, columns=df.columns) #FIXME! possible off-by-one error in using range!
                         tmp = df.append(tmp).fillna(0)
                 elif mode == 'post':
                         pass #FIXME!

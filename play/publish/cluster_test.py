@@ -33,7 +33,7 @@ model_path = 'models'
 n_in = 1
 n_out = 1
 dropout = 0.3
-bs = 100 #batch size
+bs = 1 #batch size - the smaller the batch size, the longer it takes to finish an epoch of training
 epochs = 200
 LSTM_units = 9
 
@@ -51,7 +51,6 @@ agg = tools.series_to_supervised(test, n_in=n_in, n_out=n_out)
 X_test = agg[agg.columns.difference(['var16(t)'])].values
 y_test = keras.utils.np_utils.to_categorical(agg['var16(t)'].values)
 X_test = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
-#X_train, y_train, X_test, y_test, X_validate, y_validate = tools.prepare_data_for_LSTM(train, test, validate)
 lw = X_train.shape[1]
 n_classes = max(train.status.nunique(), validate.status.nunique())
 # create the model
@@ -64,16 +63,9 @@ model.add(keras.layers.LSTM(
 model.add(keras.layers.Dropout(dropout))
 model.add(keras.layers.BatchNormalization())
 model.add(keras.layers.Dense(n_classes, activation='softmax'))
-# model.compile(loss='categorical_crossentropy',
-#               optimizer=keras.optimizers.Adam(lr=1e-4),
-#               metrics=[keras.metrics.categorical_accuracy])
 model.compile(loss='categorical_crossentropy',
               optimizer='adam',
               metrics=[keras.metrics.categorical_accuracy])
-# sgd = keras.optimizers.SGD(lr=0.001, decay=1e-6, momentum=0.9, nesterov=True)
-# model.compile(loss='categorical_crossentropy',
-#               optimizer='sgd',
-#               metrics=[keras.metrics.categorical_accuracy])
 print(model.summary())
 early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=2)
 history = model.fit(X_train, y_train, epochs=epochs, batch_size=bs,
@@ -81,50 +73,7 @@ history = model.fit(X_train, y_train, epochs=epochs, batch_size=bs,
                     verbose=1, shuffle=True,
                     callbacks=[early_stopping])
 model.save(os.path.join(model_path, 'LSTM_model_%s_%d_%.1f.h5'%(setnumber, LSTM_units, dropout)))
-tools.plot_model(history, merge_data)
-plt.show()
-aucs, y_pred_bin = tools.make_prediction(model, X_test, y_test, fig=True)
+aucs, y_pred_bin = tools.make_prediction(model, X_test, y_test, fig=False)
 y_pred = keras.utils.np_utils.to_categorical(np.array([np.argmax(y_pred_bin[i]) for i in range(len(y_pred_bin))]),
                                              num_classes=train.status.nunique())
 print (sklearn.metrics.classification_report(y_test, y_pred))
-
-# ## Alternative 2
-# train, test, validate = tools.read_preprocessed_data(setnumber, usecols, merge_data)
-# X_train, y_train, X_test, y_test, X_validate, y_validate = tools.prepare_data_for_LSTM(train, test, validate, n_in=n_in, n_out=n_out)
-
-# y_train_bin = keras.utils.np_utils.to_categorical(y_train)
-# y_test_bin = keras.utils.np_utils.to_categorical(y_test)
-# y_validate_bin = keras.utils.np_utils.to_categorical(y_validate)
-# lw = X_train.shape[1]
-# n_classes = max(train.status.nunique(), validate.status.nunique())
-# units = int((lw + n_classes)/2.)
-# # create the model
-# model = keras.models.Sequential()
-# model.add(keras.layers.LSTM(
-#     lw, input_shape=(X_train.shape[1], X_train.shape[2]),
-# #    unroll=False, return_sequences=True
-# ))
-# model.add(keras.layers.Dropout(dropout))
-# model.add(keras.layers.BatchNormalization())
-# model.add(keras.layers.Dense(n_classes, activation='softmax'))
-# # sgd = keras.optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-# # model.compile(loss='categorical_crossentropy',
-# #               optimizer='sgd',
-# #               metrics=[keras.metrics.categorical_accuracy])
-# model.compile(loss='categorical_crossentropy',
-#               optimizer=keras.optimizers.Adam(lr=1e-3),
-#               metrics=[keras.metrics.categorical_accuracy])
-# print(model.summary())
-# early_stopping = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
-# history = model.fit(X_train, y_train_bin, epochs=epochs, batch_size=bs,
-#                     validation_data=(X_validate, y_validate_bin),
-#                     verbose=0, shuffle=True,
-#                     callbacks=[early_stopping])
-# model.save(os.path.join(model_path, 'LSTM_model_%s_%d_%.1f_nin_%d.h5'%(setnumber, LSTM_units, dropout, n_in)))
-# tools.plot_model(history, merge_data)
-# plt.show()
-# aucs, y_pred = tools.make_prediction(model, X_test, y_test_bin, fig=True)
-# target_names = ['class 0', 'class 1', 'class 2', 'class3']
-# y_pred_bin = keras.utils.np_utils.to_categorical(np.array([np.argmax(y_pred[i]) for i in range(len(y_pred))]),
-#                                                  num_classes=train.status.nunique())
-# print (sklearn.metrics.classification_report(y_test_bin, y_pred_bin))

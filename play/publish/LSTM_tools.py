@@ -13,15 +13,19 @@ import keras.layers
 import keras.preprocessing.sequence
 import warnings
 warnings.filterwarnings('ignore')
+
 os.environ['PYTHONHASHSEED'] = '0'
 np.random.seed(42)
+
 data_path = 'data'
 plot_path = 'plots'
 model_path = 'models'
 
 ## Tools
-def prepare_data_for_LSTM(train, test, validate, n_in=1, n_out=1):
+def prepare_data_for_LSTM(train, test, validate, n_in, n_out):
     maxlen = int(max(train.cycle.max(), test.cycle.max()))
+    if n_in == 0:
+        n_in = maxlen
     # frame as supervised learning
     train_framed = pd.DataFrame()
     for i in train.id.unique():
@@ -59,9 +63,9 @@ def prepare_data_for_LSTM(train, test, validate, n_in=1, n_out=1):
     X_test = keras.preprocessing.sequence.pad_sequences(X_test, dtype='float64', maxlen=maxlen)
     X_validate = keras.preprocessing.sequence.pad_sequences(X_validate, dtype='float64', maxlen=maxlen)
     # reshape input to be 3D [samples, timesteps, features]
-    X_train = X_train.reshape((X_train.shape[0], maxlen, X_train.shape[1]/maxlen))
-    X_test = X_test.reshape((X_test.shape[0], maxlen, X_test.shape[1]/maxlen))
-    X_validate = X_validate.reshape((X_validate.shape[0], maxlen, X_validate.shape[1]/maxlen))
+    X_train = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
+    X_test = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
+    X_validate = X_validate.reshape((X_validate.shape[0], 1, X_validate.shape[1]))
     return X_train, y_train, X_test, y_test, X_validate, y_validate
 
 # convert series to supervised learning
@@ -181,4 +185,6 @@ def make_prediction(model, X_test, y_test, fig=False):
         plt.legend()
         plt.grid()
         plt.show()
-        return aucs
+        return aucs, y_pred
+    else:
+        return None, y_pred

@@ -8,6 +8,24 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 ## TOOLS
+def encode_labels(train_y):
+    print 'encode labels as one-vs-all vectors'
+    le = sklearn.preprocessing.LabelEncoder()
+    le.fit(train_y)
+    train_y = le.transform(train_y)
+    
+    lb = sklearn.preprocessing.LabelBinarizer()
+    lb.fit(train_y)
+    train_y = lb.transform(train_y)
+
+    return le, lb, train_y
+
+def transform_label(y, le, lb):
+    return lb.transform(le.transform(y))
+
+def invert_transform_label(y, le, lb):
+    return le.inverse_transform(lb.inverse_transform(y))
+
 def cca_analyze(train_X, train_y, test_X, nc):
     cca = sklearn.cross_decomposition.CCA(n_components=nc)
     cca.fit(train_X, train_y)
@@ -104,36 +122,28 @@ test['status'] = pd.cut(test['RUL'], bins, labels=status_labels)
 print 'normalize features (using MinMaxScaler)'
 train_scalables = train.loc[:,train.columns.difference(['id', 'cycle', 'status'])].values
 test_scalables = test.loc[:,test.columns.difference(['id', 'cycle', 'status'])].values
+
 train_scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1)).fit(train_scalables)
 test_scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1)).fit(test_scalables)
 train_values = train_scaler.transform(train_scalables)
 test_values = test_scaler.transform(test_scalables)
+
+# scaler = sklearn.preprocessing.MinMaxScaler(feature_range=(0,1))
+# scaler.fit(train_scalables)
+# train_values = scaler.transform(train_scalables)
+# test_values = scaler.transform(test_scalables)
+
 train.loc[:,train.columns.difference(['id', 'cycle', 'status'])] = train_values
 test.loc[:,test.columns.difference(['id', 'cycle', 'status'])] = test_values
+
+train.dropna(inplace=True)
+test.dropna(inplace=True)
 
 print 'separate features and labels'
 train_X = train.values[:,3:-2]
 test_X = test.values[:,3:-2]
 train_y = train.values[:,-1]
 test_y = test.values[:,-1]
-
-def encode_labels(train_y):
-    print 'encode labels as one-vs-all vectors'
-    le = sklearn.preprocessing.LabelEncoder()
-    le.fit(train_y)
-    train_y = le.transform(train_y)
-    
-    lb = sklearn.preprocessing.LabelBinarizer()
-    lb.fit(train_y)
-    train_y = lb.transform(train_y)
-
-    return le, lb, train_y
-
-def transform_label(y, le, lb):
-    return lb.transform(le.transform(y))
-
-def invert_transform_label(y, le, lb):
-    return le.inverse_transform(lb.inverse_transform(y))
 
 le, lb, train_y = encode_labels(train_y)
 test_y = transform_label(test_y, le, lb)

@@ -24,30 +24,36 @@ model_path = 'models'
 ## Tools
 def prepare_data_for_LSTM(train, test, validate, n_in, n_out):
     maxlen = int(max(train.cycle.max(), test.cycle.max()))
+    print('maxlen: %d'%maxlen)
     if n_in == 0:
         n_in = maxlen
+        
     # frame as supervised learning
     train_framed = pd.DataFrame()
     for i in train.id.unique():
-            t_in = train.loc[train.id==i, train.columns.difference(['id', 'cycle'])]
-            tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
-            train_framed = train_framed.append(tmp)
+        t_in = pad_columns(train.loc[train.id==i], maxlen)
+        t_in.drop(['id', 'cycle'], 1, inplace=True)
+        tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+        train_framed = train_framed.append(tmp)
 
     drop_cols = ['var%d(t)'%(i) for i in range(1,train.shape[1]-2)]
     train_framed.drop(drop_cols, 1, inplace=True)
 
     test_framed = pd.DataFrame()
     for i in test.id.unique():
-            t_in = test.loc[test.id==i, test.columns.difference(['id', 'cycle'])]
-            tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
-            test_framed = test_framed.append(tmp)
+        t_in = pad_columns(test.loc[test.id==i], maxlen)
+        t_in.drop(['id', 'cycle'], 1, inplace=True)
+        tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+        test_framed = test_framed.append(tmp)
+        
     test_framed.drop(drop_cols, 1, inplace=True)
 
     validate_framed = pd.DataFrame()
     for i in validate.id.unique():
-            t_in = validate.loc[train.id==i, validate.columns.difference(['id', 'cycle'])]
-            tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
-            validate_framed = validate_framed.append(tmp)
+        t_in = pad_columns(validate.loc[validate.id==i], maxlen)
+        t_in.drop(['id', 'cycle'], 1, inplace=True)
+        tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+        validate_framed = validate_framed.append(tmp)
 
     drop_cols = ['var%d(t)'%(i) for i in range(1,validate.shape[1]-2)]
     validate_framed.drop(drop_cols, 1, inplace=True)
@@ -58,7 +64,6 @@ def prepare_data_for_LSTM(train, test, validate, n_in, n_out):
     X_validate = validate_framed.values[:,:-1]
     y_validate = validate_framed.values[:,-1]
     # pad input sequences
-
     X_train = keras.preprocessing.sequence.pad_sequences(X_train, dtype='float64', maxlen=maxlen)
     X_test = keras.preprocessing.sequence.pad_sequences(X_test, dtype='float64', maxlen=maxlen)
     X_validate = keras.preprocessing.sequence.pad_sequences(X_validate, dtype='float64', maxlen=maxlen)
@@ -67,6 +72,54 @@ def prepare_data_for_LSTM(train, test, validate, n_in, n_out):
     X_test = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
     X_validate = X_validate.reshape((X_validate.shape[0], 1, X_validate.shape[1]))
     return X_train, y_train, X_test, y_test, X_validate, y_validate
+
+##The old function!
+# def prepare_data_for_LSTM(train, test, validate, n_in, n_out):
+#     maxlen = int(max(train.cycle.max(), test.cycle.max()))
+#     # frame as supervised learning
+#     train_framed = pd.DataFrame()
+#     for i in train.id.unique():
+#         t_in = train.loc[train.id==i, train.columns.difference(['id', 'cycle'])]
+#         tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+#         train_framed = train_framed.append(tmp)
+
+#     drop_cols = ['var%d(t)'%(i) for i in range(1,train.shape[1]-2)]
+#     train_framed.drop(drop_cols, 1, inplace=True)
+
+#     test_framed = pd.DataFrame()
+#     for i in test.id.unique():
+#         t_in = test.loc[test.id==i, test.columns.difference(['id', 'cycle'])]
+#         tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+#         test_framed = test_framed.append(tmp)
+#     test_framed.drop(drop_cols, 1, inplace=True)
+
+#     validate_framed = pd.DataFrame()
+#     for i in validate.id.unique():
+#         t_in = validate.loc[train.id==i, validate.columns.difference(['id', 'cycle'])]
+#         tmp = series_to_supervised(t_in.values, n_in, n_out, dropnan=True)
+#         validate_framed = validate_framed.append(tmp)
+
+#     drop_cols = ['var%d(t)'%(i) for i in range(1,validate.shape[1]-2)]
+#     validate_framed.drop(drop_cols, 1, inplace=True)
+#     X_train = train_framed.values[:,:-1]
+#     y_train = train_framed.values[:,-1]
+#     X_test = test_framed.values[:,:-1]
+#     y_test = test_framed.values[:,-1]
+#     X_validate = validate_framed.values[:,:-1]
+#     y_validate = validate_framed.values[:,-1]
+#     print('pre padding:\n')
+#     print(X_train.shape, X_test.shape, X_validate.shape)
+#     # pad input sequences
+#     X_train = keras.preprocessing.sequence.pad_sequences(X_train, dtype='float64', maxlen=maxlen)
+#     X_test = keras.preprocessing.sequence.pad_sequences(X_test, dtype='float64', maxlen=maxlen)
+#     X_validate = keras.preprocessing.sequence.pad_sequences(X_validate, dtype='float64', maxlen=maxlen)
+#     print('\npost padding:\n')
+#     print(X_train.shape, X_test.shape, X_validate.shape)
+#     # reshape input to be 3D [samples, timesteps, features]
+#     X_train = X_train.reshape((X_train.shape[0], 1, X_train.shape[1]))
+#     X_test = X_test.reshape((X_test.shape[0], 1, X_test.shape[1]))
+#     X_validate = X_validate.reshape((X_validate.shape[0], 1, X_validate.shape[1]))
+#     return X_train, y_train, X_test, y_test, X_validate, y_validate
 
 # convert series to supervised learning
 def read_preprocessed_data(setnumber, usecols, merge_data):
@@ -131,7 +184,7 @@ def pad_columns(df, maxlen, mode='pre'):
         else:
                 if mode == 'pre':
                         tmp = pd.DataFrame({'cycle': range(int(df.cycle.max()), maxlen), 'id': df.id.unique()[0]}, columns=df.columns) #FIXME! possible off-by-one error in using range!
-                        tmp = df.append(tmp).fillna(0)
+                        tmp = df.append(tmp).fillna(-1)
                 elif mode == 'post':
                         pass #FIXME!
                 return tmp
@@ -147,7 +200,7 @@ def truncate_columns(df, minlen, mode='post'):
                 elif mode == 'pre':
                         pass
                 return tmp
-def plot_model(history, merge_data):
+def plot_learning_curve(history, merge_data):
     fig, axs = plt.subplots(1,2, figsize=(15, 5))
     axs = axs.flatten()
     axs[0].plot(history.history['categorical_accuracy'], label='train')

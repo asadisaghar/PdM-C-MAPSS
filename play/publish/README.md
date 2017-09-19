@@ -1,6 +1,7 @@
 #### Installation
 
 sudo apt-get install libfreetype6-dev libfreetype6 libblas-dev libblas3 libblas-dev liblapack-dev libatlas-base-dev gfortran
+
 pip install -r requirements.txt
 
 
